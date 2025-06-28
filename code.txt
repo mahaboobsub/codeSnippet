@@ -1,0 +1,547 @@
+`client/eslint.config.js`
+
+```javascript
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs['recommended-latest'],
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+])
+
+```
+
+`client/index.html`
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+```
+
+`client/src/App.css`
+
+```css
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+```
+
+`client/src/App.jsx`
+
+```javascript
+import CreateSnippet from './components/CreateSnippet'
+import Navbar from './components/Navbar'
+
+function App() {
+  
+
+  return (
+    <main className='container max-w-4xl mx-auto p-4'>
+      <Navbar />
+      <CreateSnippet/>
+    </main>
+  )
+}
+
+export default App
+
+```
+
+`client/src/components/CreateComment.jsx`
+
+```javascript
+// client/src/components/CreateComment.jsx
+
+// FIX 1: Import useEffect from React and axios
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+
+// FIX 2: Destructure snippetId from the props object
+const CreateComment = ({ snippetId }) => {
+    const [text, setText] = useState('');
+    const [comments, setComments] = useState([]);
+
+    // Function to fetch comments for this specific snippet
+    const fetchComments = async () => {
+        // Prevent API call if snippetId is not yet available
+        if (!snippetId) return; 
+
+        try {
+            const res = await axios.get(`http://localhost:8001/api/v1/snippet/${snippetId}/comment`);
+            // FIX 5: The backend returns 'comments', so we use res.data.comments
+            setComments(res.data.comments || []);
+        } catch (error) {
+            console.error("Error fetching comments:", error);
+        }
+    };
+
+    // FIX 3: Use useEffect to fetch comments when the component mounts or snippetId changes
+    useEffect(() => {
+        fetchComments();
+    }, [snippetId]); // Dependency array prevents infinite loops
+
+    const addComment = async (e) => {
+        e.preventDefault();
+        if (!text.trim()) return; // Don't submit empty comments
+
+        try {
+            const res = await axios.post(
+                `http://localhost:8001/api/v1/snippet/${snippetId}/comment`,
+                { text }
+            );
+            
+            
+            // Clear the input field
+            setText('');
+            // Re-fetch comments to show the new one
+            fetchComments();
+            
+        } catch (error) {
+           
+            alert("Failed to add comment. See console for details.");
+        }
+    };
+
+    return (
+        <div className='text-left'>
+            <h4 className='font-semibold text-sm mt-3'>Comments:</h4>
+            <ul className='list-disc list-inside text-sm pl-2'>
+                {comments.length > 0 ? (
+                    // FIX 4: Use comment.commentId for the key and display comment.text
+                    comments.map((comment) => (
+                        <li key={comment.commentId}>{comment.text}</li>
+                    ))
+                ) : (
+                    <li className='text-gray-500 italic'>No comments yet.</li>
+                )}
+            </ul>
+            <form onSubmit={addComment} className='mt-2 flex items-center gap-2'>
+                <input
+                    type='text'
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder='Add a comment...'
+                    className='border rounded p-1 flex-grow'
+                />
+                <button type='submit' className='w-fit bg-amber-900 text-amber-50 px-4 py-1 rounded cursor-pointer'>
+                    Add
+                </button>
+            </form>
+        </div>
+    );
+};
+
+export default CreateComment;
+```
+
+`client/src/components/CreateSnippet.jsx`
+
+```javascript
+// client/src/components/CreateSnippet.jsx
+
+import React from 'react';
+import axios from 'axios';
+// FIX 1: Import the component with the correct uppercase name and from the new filename
+import CreateComment from './CreateComment'; // Ensure this path is correct
+
+const CreateSnippet = () => {
+    const [title, setTitle] = React.useState('');
+    const [code, setCode] = React.useState('');
+    const [snippets, setSnippets] = React.useState({});
+
+    // This function will fetch all snippets
+    const fetchSnippets = async () => {
+        try {
+            const res = await axios.get('http://localhost:8000/api/v1/snippet');
+            setSnippets(res.data);
+        } catch (error) {
+            console.error("Error fetching snippets:", error);
+        }
+    };
+
+    // Fetch snippets when the component first loads
+    React.useEffect(() => {
+        fetchSnippets();
+    }, []);
+
+    const createSnippet = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await axios.post('http://localhost:8000/api/v1/snippet', { title, code });
+            console.log("Snippet created successfully:", res.data);
+            alert(res.data.message || "Snippet created successfully!");
+
+            // Clear the form fields
+            setTitle('');
+            setCode('');
+            
+            // FIX (Improvement): Re-fetch the snippets to update the list automatically
+            fetchSnippets();
+
+        } catch (error) {
+            console.error("Error creating snippet:", error);
+            alert("Failed to create snippet. See console for details.");
+        }
+    };
+
+    return (
+        <div className='mt-10'>
+            {/* Form to create a new snippet */}
+            <div className='p-4 bg-amber-50 rounded-lg shadow-md'>
+                <form onSubmit={createSnippet} className='flex flex-col space-y-4 mb-4'>
+                    <input
+                        type='text'
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder='Title'
+                        className='border rounded px-2 py-1 w-full md:w-1/2' // Made it wider
+                    />
+                    <textarea
+                        placeholder='Write a code snippet...'
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        className='border rounded px-2 py-1 mb-2'
+                        rows={5} // Give it more initial height
+                    />
+                    <button className='w-fit bg-amber-900 text-amber-50 px-6 py-3 rounded cursor-pointer'>Add Snippet</button>
+                </form>
+            </div>
+
+            {/* Displaying the list of existing snippets */}
+            <div className='mt-8 grid grid-cols-1 md:grid-cols-2 gap-4'>
+                {
+                    Object.values(snippets).map((snippet) => (
+                        // FIX 2: Use the correct 'id' property for the key
+                        <div key={snippet.id} className='border rounded-lg p-4 bg-white shadow-sm flex flex-col'>
+                            <h2 className='text-lg font-semibold text-left'>{snippet.title}</h2>
+                            <pre className='bg-gray-100 text-left p-2 rounded mt-2 flex-grow overflow-auto'>{snippet.code}</pre>
+                            
+                            {/* FIX 3: Use the component with the correct uppercase name */}
+                            <div className='mt-4'>
+                                <CreateComment snippetId={snippet.id} /> 
+                            </div>
+                        </div>
+                    ))
+                }
+            </div>
+        </div>
+    );
+};
+
+export default CreateSnippet;
+```
+
+`client/src/components/Navbar.jsx`
+
+```javascript
+import React from 'react'
+
+const Navbar = () => {
+  return (
+    <div className='flex item-center justify-between' >
+        <h1 className='font-bold text-2xl'>Code Snippet</h1>
+        <button>Logout</button>
+    </div>
+  )
+}
+
+export default Navbar
+```
+
+`client/src/index.css`
+
+```css
+@import "tailwindcss";
+
+```
+
+`client/src/main.jsx`
+
+```javascript
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+```
+
+`client/vite.config.js`
+
+```javascript
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react(),tailwindcss(),
+],
+})
+
+```
+
+`comments/controller/comment.js`
+
+```javascript
+// comments/controller/comment.js
+
+import { randomBytes } from 'crypto';
+import { commentsDB } from '../database/index.js';
+
+export const createComment = (req, res) => {
+    // ... (This function is fine, no changes needed)
+    const commentId = randomBytes(4).toString("hex");
+
+    const { text } = req.body;
+    const snippetId = req.params.id;
+
+    const comments = commentsDB[snippetId] || [];
+    // creating a comment object
+    comments.push({
+        commentId,
+        text
+    });
+    commentsDB[snippetId] = comments;
+
+    // returning the comment object
+    return res.status(201).json({
+        success: true,
+        message: "Comment created successfully",
+        comment: {
+            commentId,
+            text
+        }
+    });
+};
+
+export const getCommentBySnippetId = (req, res) => {
+    const snippetId = req.params.id;
+
+    // FIX: Change the key from 'commentsDB' to 'comments' to match the frontend
+    return res.status(200).json({
+        success: true,
+        comments: commentsDB[snippetId] || []
+    });
+};
+```
+
+`comments/database/index.js`
+
+```javascript
+export const commentsDB =  {};
+    // This function is a placeholder for the comments database logic.
+    // You can implement your database logic here, such as connecting to a database,
+    // defining schemas, or any other necessary operations.
+
+```
+
+`comments/index.js`
+
+```javascript
+import express from 'express';
+import commentRouter from './routes/comment.js';
+import cors from 'cors';
+
+const app = express();
+const PORT = 8001;
+
+app.use(express.json());
+// Middleware to parse URL-encoded bodies (for form submissions)
+app.use(express.urlencoded({ extended: true }));
+
+// Enable CORS for the frontend application
+app.use(cors({
+  origin: 'http://localhost:5173', // Adjust this to your frontend's URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true, // Allow credentials if needed
+}));
+"http://localhost:${PORT}/api/v1/snippet/:id/comment";
+
+app.use("/api/v1/snippet", commentRouter);
+
+
+
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
+```
+
+`comments/routes/comment.js`
+
+```javascript
+import express from 'express';
+import { createComment, getCommentBySnippetId } from '../controller/comment.js';
+
+const router = express.Router();
+
+router.route("/:id/comment").post(createComment);
+router.route("/:id/comment").get(getCommentBySnippetId);
+
+export default router;
+
+```
+
+`snippet/controller/snippet.js`
+
+```javascript
+import { snippets } from "../database/index.js";
+import { randomBytes } from "crypto";
+
+export const createSnippet = (req, res) => {
+    const id = randomBytes(4).toString("hex");
+    const { title, code } = req.body;
+
+    // creating a snippet object
+    snippets[id] = {
+        id,
+        title,
+        code
+    };
+
+    // returning the snippet object
+    return res.status(201).json({
+        success: true,
+        message: "Snippet created successfully",
+        snippet: snippets[id]
+    });
+};
+
+export const getSnippet = (req, res) => {
+    return res.status(200).json(snippets);
+};
+```
+
+`snippet/database/index.js`
+
+```javascript
+// snippet/database/index.js
+
+// FIX: Change this from a function to an object literal
+export const snippets = {};
+```
+
+`snippet/index.js`
+
+```javascript
+import express from 'express';
+import snippetRouter from './routes/snippet.js';
+import cors from 'cors';
+
+const app = express();
+const PORT = 8000;
+
+app.use(express.json());
+// Middleware to parse URL-encoded bodies (for form submissions)
+app.use(express.urlencoded({ extended: true }));
+
+app.use(cors({
+  origin: 'http://localhost:5173', // Adjust this to your frontend's URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true, // Allow credentials if needed
+}));
+
+app.use("/api/v1/snippet", snippetRouter);
+
+"http://localhost:${PORT}/api/v1/snippet";
+
+
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
+```
+
+`snippet/routes/snippet.js`
+
+```javascript
+import express from 'express';
+import { createSnippet, getSnippet } from '../controller/snippet.js';
+
+const router = express.Router();
+
+router.route("/").post(createSnippet);
+router.route("/").get(getSnippet);
+
+export default router;
+
+```
+
