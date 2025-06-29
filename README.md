@@ -19,24 +19,8 @@ Communication Flow
 
 The services communicate via HTTP requests. The client does not have direct access to any database; it interacts solely with the REST APIs provided by the backend microservices.
 
-Generated code
-+----------------+      HTTP Requests      +---------------------+
-|                |  ------------------->  |                     |
-|  Client        |  (localhost:8000/api)  |   Snippet Service   |
-|  (React App)   |                        |   (Node.js)         |
-|                |  <-------------------  |                     |
-+----------------+                        +---------------------+
-       |
-       | HTTP Requests
-       | (localhost:8001/api)
-       |
-       v
-+---------------------+
-|                     |
-|   Comments Service  |
-|   (Node.js)         |
-|                     |
-+---------------------+
+![image](https://github.com/user-attachments/assets/7bb6e160-15bb-4454-b273-36be3bdaab5a)
+
 
 ✨ Key Features
 
