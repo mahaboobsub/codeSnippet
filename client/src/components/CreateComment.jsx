@@ -1,51 +1,31 @@
 // client/src/components/CreateComment.jsx
 
-// FIX 1: Import useEffect from React and axios
-import React, { useState, useEffect } from 'react';
+// FIX: Remove unused 'useEffect' and simplify imports
+import React, { useState } from 'react';
 import axios from 'axios';
 
-// FIX 2: Destructure snippetId from the props object
-const CreateComment = ({ snippetId }) => {
+// The component now receives the full snippet object and a function to refresh the main list
+const CreateComment = ({ snippet, onCommentCreated }) => {
     const [text, setText] = useState('');
-    const [comments, setComments] = useState([]);
 
-    // Function to fetch comments for this specific snippet
-    const fetchComments = async () => {
-        // Prevent API call if snippetId is not yet available
-        if (!snippetId) return; 
-
-        try {
-            const res = await axios.get(`http://localhost:8001/api/v1/snippet/${snippetId}/comment`);
-            // FIX 5: The backend returns 'comments', so we use res.data.comments
-            setComments(res.data.comments || []);
-        } catch (error) {
-            console.error("Error fetching comments:", error);
-        }
-    };
-
-    // FIX 3: Use useEffect to fetch comments when the component mounts or snippetId changes
-    useEffect(() => {
-        fetchComments();
-    }, [snippetId]); // Dependency array prevents infinite loops
-
+    // This function remains the same, it correctly posts to the comments service
     const addComment = async (e) => {
         e.preventDefault();
-        if (!text.trim()) return; // Don't submit empty comments
+        if (!text.trim()) return;
 
         try {
-            const res = await axios.post(
-                `http://localhost:8001/api/v1/snippet/${snippetId}/comment`,
+            await axios.post(
+                `http://localhost:8001/api/v1/snippet/${snippet.id}/comment`,
                 { text }
             );
             
-            
-            // Clear the input field
             setText('');
-            // Re-fetch comments to show the new one
-            fetchComments();
             
+            // FIX: Call the passed-in function to trigger a data refresh in the parent
+            onCommentCreated();
+
         } catch (error) {
-           
+            console.error("Failed to add comment:", error);
             alert("Failed to add comment. See console for details.");
         }
     };
@@ -54,13 +34,14 @@ const CreateComment = ({ snippetId }) => {
         <div className='text-left'>
             <h4 className='font-semibold text-sm mt-3'>Comments:</h4>
             <ul className='list-disc list-inside text-sm pl-2'>
-                {comments.length > 0 ? (
-                    // FIX 4: Use comment.commentId for the key and display comment.text
-                    comments.map((comment) => (
-                        <li key={comment.commentId}>{comment.text}</li>
+                {/* FIX: Render the comments array directly from the snippet prop */}
+                {snippet.comments && snippet.comments.length > 0 ? (
+                    snippet.comments.map((comment) => (
+                        // FIX: Use the correct property names from the Query Service
+                        <li key={comment.id}>{comment.content}</li>
                     ))
                 ) : (
-                    <li className='text-gray-500 italic'>No comments yet.</li>
+                    <li className='text-gray-500 list-none italic'>No comments yet.</li>
                 )}
             </ul>
             <form onSubmit={addComment} className='mt-2 flex items-center gap-2'>

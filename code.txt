@@ -126,52 +126,32 @@ export default App
 ```javascript
 // client/src/components/CreateComment.jsx
 
-// FIX 1: Import useEffect from React and axios
-import React, { useState, useEffect } from 'react';
+// FIX: Remove unused 'useEffect' and simplify imports
+import React, { useState } from 'react';
 import axios from 'axios';
 
-// FIX 2: Destructure snippetId from the props object
-const CreateComment = ({ snippetId }) => {
+// The component now receives the full snippet object and a function to refresh the main list
+const CreateComment = ({ snippet, onCommentCreated }) => {
     const [text, setText] = useState('');
-    const [comments, setComments] = useState([]);
 
-    // Function to fetch comments for this specific snippet
-    const fetchComments = async () => {
-        // Prevent API call if snippetId is not yet available
-        if (!snippetId) return; 
-
-        try {
-            const res = await axios.get(`http://localhost:8001/api/v1/snippet/${snippetId}/comment`);
-            // FIX 5: The backend returns 'comments', so we use res.data.comments
-            setComments(res.data.comments || []);
-        } catch (error) {
-            console.error("Error fetching comments:", error);
-        }
-    };
-
-    // FIX 3: Use useEffect to fetch comments when the component mounts or snippetId changes
-    useEffect(() => {
-        fetchComments();
-    }, [snippetId]); // Dependency array prevents infinite loops
-
+    // This function remains the same, it correctly posts to the comments service
     const addComment = async (e) => {
         e.preventDefault();
-        if (!text.trim()) return; // Don't submit empty comments
+        if (!text.trim()) return;
 
         try {
-            const res = await axios.post(
-                `http://localhost:8001/api/v1/snippet/${snippetId}/comment`,
+            await axios.post(
+                `http://localhost:8001/api/v1/snippet/${snippet.id}/comment`,
                 { text }
             );
             
-            
-            // Clear the input field
             setText('');
-            // Re-fetch comments to show the new one
-            fetchComments();
             
+            // FIX: Call the passed-in function to trigger a data refresh in the parent
+            onCommentCreated();
+
         } catch (error) {
-           
+            console.error("Failed to add comment:", error);
             alert("Failed to add comment. See console for details.");
         }
     };
@@ -180,13 +160,14 @@ const CreateComment = ({ snippetId }) => {
         <div className='text-left'>
             <h4 className='font-semibold text-sm mt-3'>Comments:</h4>
             <ul className='list-disc list-inside text-sm pl-2'>
-                {comments.length > 0 ? (
-                    // FIX 4: Use comment.commentId for the key and display comment.text
-                    comments.map((comment) => (
-                        <li key={comment.commentId}>{comment.text}</li>
+                {/* FIX: Render the comments array directly from the snippet prop */}
+                {snippet.comments && snippet.comments.length > 0 ? (
+                    snippet.comments.map((comment) => (
+                        // FIX: Use the correct property names from the Query Service
+                        <li key={comment.id}>{comment.content}</li>
                     ))
                 ) : (
-                    <li className='text-gray-500 italic'>No comments yet.</li>
+                    <li className='text-gray-500 list-none italic'>No comments yet.</li>
                 )}
             </ul>
             <form onSubmit={addComment} className='mt-2 flex items-center gap-2'>
@@ -213,44 +194,49 @@ export default CreateComment;
 ```javascript
 // client/src/components/CreateSnippet.jsx
 
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-// FIX 1: Import the component with the correct uppercase name and from the new filename
-import CreateComment from './CreateComment'; // Ensure this path is correct
+import CreateComment from './CreateComment'; 
 
 const CreateSnippet = () => {
-    const [title, setTitle] = React.useState('');
-    const [code, setCode] = React.useState('');
-    const [snippets, setSnippets] = React.useState({});
+    const [title, setTitle] = useState('');
+    const [code, setCode] = useState('');
+    const [snippets, setSnippets] = useState({});
 
-    // This function will fetch all snippets
+    // This function will fetch the aggregated data from the Query Service
     const fetchSnippets = async () => {
         try {
-            const res = await axios.get('http://localhost:8000/api/v1/snippet');
+            // CRITICAL FIX: Fetch from the Query Service on port 8002
+            const res = await axios.get('http://localhost:8002/snippets');
             setSnippets(res.data);
         } catch (error) {
-            console.error("Error fetching snippets:", error);
+            console.error("Error fetching snippets from Query Service:", error);
         }
     };
 
-    // Fetch snippets when the component first loads
-    React.useEffect(() => {
+    // Fetch snippets when the component first loads using useEffect
+    useEffect(() => {
         fetchSnippets();
-    }, []);
+    }, []); // Empty dependency array ensures this runs only once on mount
 
+    // Function to handle the creation of a new snippet
+    // This still posts to the Snippet Service, which is correct.
     const createSnippet = async (e) => {
         e.preventDefault();
         try {
             const res = await axios.post('http://localhost:8000/api/v1/snippet', { title, code });
-            console.log("Snippet created successfully:", res.data);
             alert(res.data.message || "Snippet created successfully!");
 
-            // Clear the form fields
+            // Clear the form fields after successful submission
             setTitle('');
             setCode('');
             
-            // FIX (Improvement): Re-fetch the snippets to update the list automatically
-            fetchSnippets();
+            // NOTE: We don't need to call fetchSnippets() here anymore.
+            // In a fully event-driven UI, we would listen for an event to update state.
+            // For now, a small delay and a re-fetch is a simple way to see the update.
+            setTimeout(() => {
+                fetchSnippets();
+            }, 500); // Wait 500ms for the event to be processed by the query service
 
         } catch (error) {
             console.error("Error creating snippet:", error);
@@ -258,41 +244,50 @@ const CreateSnippet = () => {
         }
     };
 
+    // OPTIMIZATION: Use useMemo to prevent creating a new array on every render.
+    const renderedSnippets = useMemo(() => Object.values(snippets), [snippets]);
+
     return (
         <div className='mt-10'>
             {/* Form to create a new snippet */}
-            <div className='p-4 bg-amber-50 rounded-lg shadow-md'>
-                <form onSubmit={createSnippet} className='flex flex-col space-y-4 mb-4'>
+            <div className='p-4 bg-amber-50 rounded-lg shadow-md mb-8'>
+                <form onSubmit={createSnippet} className='flex flex-col space-y-4'>
                     <input
                         type='text'
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder='Title'
-                        className='border rounded px-2 py-1 w-full md:w-1/2' // Made it wider
+                        className='border rounded px-2 py-1 w-full md:w-1/2'
+                        required
                     />
                     <textarea
                         placeholder='Write a code snippet...'
                         value={code}
                         onChange={(e) => setCode(e.target.value)}
-                        className='border rounded px-2 py-1 mb-2'
-                        rows={5} // Give it more initial height
+                        className='border rounded px-2 py-1'
+                        rows={5}
+                        required
                     />
-                    <button className='w-fit bg-amber-900 text-amber-50 px-6 py-3 rounded cursor-pointer'>Add Snippet</button>
+                    <button type='submit' className='w-fit bg-amber-900 text-amber-50 px-6 py-3 rounded cursor-pointer'>
+                        Add Snippet
+                    </button>
                 </form>
             </div>
 
             {/* Displaying the list of existing snippets */}
-            <div className='mt-8 grid grid-cols-1 md:grid-cols-2 gap-4'>
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 {
-                    Object.values(snippets).map((snippet) => (
-                        // FIX 2: Use the correct 'id' property for the key
+                    renderedSnippets.map((snippet) => (
                         <div key={snippet.id} className='border rounded-lg p-4 bg-white shadow-sm flex flex-col'>
                             <h2 className='text-lg font-semibold text-left'>{snippet.title}</h2>
                             <pre className='bg-gray-100 text-left p-2 rounded mt-2 flex-grow overflow-auto'>{snippet.code}</pre>
                             
-                            {/* FIX 3: Use the component with the correct uppercase name */}
                             <div className='mt-4'>
-                                <CreateComment snippetId={snippet.id} /> 
+                                {/* FIX: Pass down the refresh handler */}
+                                <CreateComment 
+                                    snippet={snippet}
+                                    onCommentCreated={() => setTimeout(fetchSnippets, 500)}
+                                /> 
                             </div>
                         </div>
                     ))
@@ -367,30 +362,40 @@ export default defineConfig({
 
 import { randomBytes } from 'crypto';
 import { commentsDB } from '../database/index.js';
+import axios from 'axios';
 
-export const createComment = (req, res) => {
-    // ... (This function is fine, no changes needed)
+// FIX: Make the function async
+export const createComment = async (req, res) => {
     const commentId = randomBytes(4).toString("hex");
-
     const { text } = req.body;
     const snippetId = req.params.id;
 
+    if (!text) {
+        return res.status(400).json({ success: false, message: "Comment text is required." });
+    }
+
     const comments = commentsDB[snippetId] || [];
-    // creating a comment object
-    comments.push({
-        commentId,
-        text
-    });
+    comments.push({ commentId, text });
     commentsDB[snippetId] = comments;
 
-    // returning the comment object
+    try {
+        // FIX: Await the event publication
+        await axios.post("http://localhost:8005/events", {
+            type: "CommentCreated",
+            data: {
+                id: commentId,
+                content: text,
+                snippetId,
+            }
+        });
+    } catch (err) {
+        console.error("Failed to publish CommentCreated event:", err.message);
+    }
+
     return res.status(201).json({
         success: true,
         message: "Comment created successfully",
-        comment: {
-            commentId,
-            text
-        }
+        comment: { commentId, text }
     });
 };
 
@@ -422,6 +427,8 @@ import express from 'express';
 import commentRouter from './routes/comment.js';
 import cors from 'cors';
 
+
+
 const app = express();
 const PORT = 8001;
 
@@ -436,6 +443,11 @@ app.use(cors({
   credentials: true, // Allow credentials if needed
 }));
 "http://localhost:${PORT}/api/v1/snippet/:id/comment";
+
+app.post("/events", (req, res) => {
+  console.log("Event received:", req.body.type);
+  return res.status(200).json({});
+});
 
 app.use("/api/v1/snippet", commentRouter);
 
@@ -461,24 +473,123 @@ export default router;
 
 ```
 
+`message_broker/index.js`
+
+```javascript
+import express from 'express';
+import axios from 'axios';
+
+
+const app = express();
+const PORT = 8005;
+
+app.use(express.json());
+// Middleware to parse URL-encoded bodies (for form submissions)    
+app.use(express.urlencoded({ extended: true }));
+
+
+app.post("/events", (req, res) => {
+    const events = req.body;
+
+    axios.post("http://localhost:8000/events",events);//snippet service
+    axios.post("http://localhost:8001/events",events);//comment service
+    axios.post("http://localhost:8002/events",events);//query service
+
+    return res.status(200).json({});
+}); 
+
+app.listen(PORT, () => {
+      console.log(`Message Broker is running on port ${PORT}`);
+});
+```
+
+`query/index.js`
+
+```javascript
+// query/index.js
+
+import express from "express";
+import cors from "cors";
+
+const app = express();
+const PORT = 8002;
+
+app.use(express.json());
+app.use(cors()); // Simplified cors for this service
+
+const snippets = {}; // In-memory storage
+
+app.get("/snippets", (_, res) => {
+    return res.status(200).json(snippets);
+});
+
+app.post("/events", (req, res) => {
+    const { type, data } = req.body;
+    console.log(`Query service received event: ${type}`);
+
+    if (type === "SnippetCreated") {
+        // FIX: Store the code as well
+        const { id, title, code } = data;
+        snippets[id] = { id, title, code, comments: [] };
+    }
+
+    if (type === "CommentCreated") {
+        // FIX: Destructure 'content' instead of 'comment'
+        const { id, content, snippetId } = data;
+        const snippet = snippets[snippetId];
+
+        // Add a safety check in case the snippet doesn't exist yet
+        if (snippet) {
+            // FIX: Push the correct object structure
+            snippet.comments.push({ id, content });
+        }
+    }
+
+    return res.status(200).json({});
+});
+
+app.listen(PORT, () => {
+    console.log(`Query service is running on port ${PORT}`);
+});
+```
+
 `snippet/controller/snippet.js`
 
 ```javascript
+// snippet/controller/snippet.js
+
 import { snippets } from "../database/index.js";
 import { randomBytes } from "crypto";
+import axios from "axios";
 
-export const createSnippet = (req, res) => {
+// FIX: Make the function async
+export const createSnippet = async (req, res) => {
     const id = randomBytes(4).toString("hex");
     const { title, code } = req.body;
 
-    // creating a snippet object
-    snippets[id] = {
-        id,
-        title,
-        code
-    };
+    if (!title || !code) {
+        return res.status(400).json({ success: false, message: "Title and code are required." });
+    }
+    
+    snippets[id] = { id, title, code };
 
-    // returning the snippet object
+    try {
+        // FIX: Await the event publication
+        await axios.post("http://localhost:8005/events", {
+            type: "SnippetCreated",
+            data: {
+                id,
+                title,
+                code // Also send the code to the query service
+            }
+        });
+    } catch (err) {
+        // This will print the entire error object, which is much more informative
+        console.error("Failed to publish SnippetCreated event:", err); 
+        // Decide if you want to fail the whole request or just log the error
+        // For now, we'll log it and continue.
+    }
+
     return res.status(201).json({
         success: true,
         message: "Snippet created successfully",
@@ -486,7 +597,7 @@ export const createSnippet = (req, res) => {
     });
 };
 
-export const getSnippet = (req, res) => {
+export const getSnippet = (_, res) => {
     return res.status(200).json(snippets);
 };
 ```
@@ -519,6 +630,11 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true, // Allow credentials if needed
 }));
+
+app.post("/events", (req, res) => {
+  console.log("Event received:", req.body.type);
+  return res.status(200).json({});
+});  
 
 app.use("/api/v1/snippet", snippetRouter);
 

@@ -2,6 +2,8 @@ import express from 'express';
 import commentRouter from './routes/comment.js';
 import cors from 'cors';
 
+
+
 const app = express();
 const PORT = 8001;
 
@@ -16,6 +18,11 @@ app.use(cors({
   credentials: true, // Allow credentials if needed
 }));
 "http://localhost:${PORT}/api/v1/snippet/:id/comment";
+
+app.post("/events", (req, res) => {
+  console.log("Event received:", req.body.type);
+  return res.status(200).json({});
+});
 
 app.use("/api/v1/snippet", commentRouter);
 
