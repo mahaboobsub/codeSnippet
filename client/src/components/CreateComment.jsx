@@ -1,14 +1,14 @@
 // client/src/components/CreateComment.jsx
 
-// FIX: Remove unused 'useEffect' and simplify imports
 import React, { useState } from 'react';
 import axios from 'axios';
 
-// The component now receives the full snippet object and a function to refresh the main list
+// The component receives the full snippet object and a function to refresh the main list.
+// It is now a "presentational" component with no data-fetching logic.
 const CreateComment = ({ snippet, onCommentCreated }) => {
     const [text, setText] = useState('');
 
-    // This function remains the same, it correctly posts to the comments service
+    // This function correctly posts to the 'comments' command service.
     const addComment = async (e) => {
         e.preventDefault();
         if (!text.trim()) return;
@@ -21,7 +21,7 @@ const CreateComment = ({ snippet, onCommentCreated }) => {
             
             setText('');
             
-            // FIX: Call the passed-in function to trigger a data refresh in the parent
+            // Notify the parent component that a comment was created, so it can trigger a refresh.
             onCommentCreated();
 
         } catch (error) {
@@ -34,10 +34,11 @@ const CreateComment = ({ snippet, onCommentCreated }) => {
         <div className='text-left'>
             <h4 className='font-semibold text-sm mt-3'>Comments:</h4>
             <ul className='list-disc list-inside text-sm pl-2'>
-                {/* FIX: Render the comments array directly from the snippet prop */}
+                {/* Render the comments array directly from the 'snippet' prop. */}
+                {/* This data comes from the Query Service via the parent component. */}
                 {snippet.comments && snippet.comments.length > 0 ? (
                     snippet.comments.map((comment) => (
-                        // FIX: Use the correct property names from the Query Service
+                        // Use the correct property names from the Query Service: 'id' and 'content'.
                         <li key={comment.id}>{comment.content}</li>
                     ))
                 ) : (

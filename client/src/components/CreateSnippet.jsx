@@ -80,6 +80,10 @@ const CreateSnippet = () => {
                 </form>
             </div>
 
+           // client/src/components/CreateSnippet.jsx
+
+// ... (imports and component logic) ...
+
             {/* Displaying the list of existing snippets */}
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 {
@@ -89,7 +93,7 @@ const CreateSnippet = () => {
                             <pre className='bg-gray-100 text-left p-2 rounded mt-2 flex-grow overflow-auto'>{snippet.code}</pre>
                             
                             <div className='mt-4'>
-                                {/* FIX: Pass down the refresh handler */}
+                                {/* This is correct: Pass down the snippet object and a refresh handler. */}
                                 <CreateComment 
                                     snippet={snippet}
                                     onCommentCreated={() => setTimeout(fetchSnippets, 500)}
