@@ -21,6 +21,10 @@ Communication Flow
 
 The client writes to the command services (snippet, comments). These services then publish events to the message_broker. The broker fans out these events to all other services, allowing the query service to build up a materialized view of the data. The client reads all display data from this highly-efficient query service.
 
+![image](https://github.com/user-attachments/assets/7bb6e160-15bb-4454-b273-36be3bdaab5a)
+
+![image](https://github.com/user-attachments/assets/7633bf6a-a640-4b71-9752-91a3633e4c77)
+
 🚀 Getting Started
 
 You can run this project in two ways: locally using Node.js or using Docker.
