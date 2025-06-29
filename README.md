@@ -1,31 +1,56 @@
-Code Snippet Manager - A Microservices Project
+Code Snippet Manager (Microservices)
 
 ![alt text](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 
 ![alt text](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)
 
-A simple, full-stack web application for managing and commenting on code snippets, built with a React frontend and Node.js microservices.
+A full-stack web application for managing and commenting on code snippets. This project is a practical demonstration of a Microservices Architecture, where the application is decomposed into small, independent services that communicate over the network.
 
-<!-- You can replace this with your own screenshot -->
+🏛️ Architecture
+
+This project is composed of three distinct, independently running services:
+
+Service	Description	Port
+client	A React (Vite) frontend that provides the user interface.	5173
+snippet	A Node.js/Express microservice responsible for creating and retrieving snippets.	8000
+comments	A Node.js/Express microservice for managing comments on snippets.	8001
+Communication Flow
+
+The services communicate via HTTP requests. The client does not have direct access to any database; it interacts solely with the REST APIs provided by the backend microservices.
+
+Generated code
++----------------+      HTTP Requests      +---------------------+
+|                |  ------------------->  |                     |
+|  Client        |  (localhost:8000/api)  |   Snippet Service   |
+|  (React App)   |                        |   (Node.js)         |
+|                |  <-------------------  |                     |
++----------------+                        +---------------------+
+       |
+       | HTTP Requests
+       | (localhost:8001/api)
+       |
+       v
++---------------------+
+|                     |
+|   Comments Service  |
+|   (Node.js)         |
+|                     |
++---------------------+
 
 ✨ Key Features
 
-Create & View Snippets: Add new code snippets with a title and view all existing snippets in a clean card layout.
+Decoupled Services: Snippet and comment functionalities are handled by separate, independent services.
 
-Commenting System: Each snippet has a dedicated section for adding and viewing comments.
+Single Responsibility: Each microservice has a clearly defined and narrow responsibility.
 
-Microservice Architecture: Demonstrates separation of concerns with dedicated services for snippets and comments.
+Technology Freedom: (In a larger project) Each service could be written in a different programming language.
 
-Real-time UI Updates: The interface automatically refreshes when new snippets or comments are added.
-
-In-Memory Database: Both backend services use a simple in-memory object for data storage, making the project easy to run without a database setup.
-
-![image](https://github.com/user-attachments/assets/fa3536ee-5cf0-4f0c-b784-2cb7457e611c)
+In-Memory Database: Both backend services use a simple in-memory object, making the project easy to run without a database setup.
 
 🚀 Running Locally
 
-Follow these instructions to get the project up and running. You will need to open three separate terminal windows.
+Follow these instructions to get the project up and running. You must open three separate terminal windows, one for each service.
 
 Prerequisites
 
@@ -37,7 +62,12 @@ npm (included with Node.js)
 Generated bash
 git clone https://github.com/mahaboobsub/codeSnippet.git
 cd codeSnippet
-
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Bash
+IGNORE_WHEN_COPYING_END
 2. Setup and Run Each Service
 
 ➡️ Terminal 1: Snippet Service
@@ -85,7 +115,7 @@ cd client
 # Install dependencies
 npm install
 
-# Start the development server (opens automatically)
+# Start the development server (opens automatically at http://localhost:5173)
 npm run dev
 IGNORE_WHEN_COPYING_START
 content_copy
@@ -93,11 +123,9 @@ download
 Use code with caution.
 Bash
 IGNORE_WHEN_COPYING_END
-Quick Reference
-Service	Purpose	URL
-Client	React Frontend UI	http://localhost:5173
-Snippet API	Manages Snippets	http://localhost:8000
-Comments API	Manages Comments	http://localhost:8001
+
+Once all three services are running, you can access the application in your browser.
+
 🔌 API Endpoints
 Snippet Service (:8000)
 Method	Endpoint	Description
@@ -109,15 +137,15 @@ GET	/api/v1/snippet/:id/comment	Retrieves all comments for a specific snippet.
 POST	/api/v1/snippet/:id/comment	Creates a new comment for a snippet. Body: { "text" }
 🗺️ Future Improvements
 
-Integrate a persistent database (e.g., MongoDB, PostgreSQL).
+Integrate a persistent database (e.g., MongoDB, PostgreSQL) for each service.
 
-Add user authentication and authorization (e.g., JWT).
+Add an event bus (like RabbitMQ or Kafka) for asynchronous communication between services.
+
+Implement user authentication and authorization.
+
+Containerize services using Docker and orchestrate with Docker Compose.
 
 Implement full CRUD (Update/Delete) for snippets and comments.
-
-Add client-side routing for dedicated snippet detail pages.
-
-Enhance UI with loading states, error modals, and form validation.
 
 📜 License
 
